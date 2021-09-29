@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+echo "--- VERSIONS ---"
+docker version
+docker --version
+node --version
+npm --version
+echo "--- VERSIONS ---"
+
 rm -rf starknet-hardhat-example
 git clone git@github.com:Shard-Labs/starknet-hardhat-example.git
 cd starknet-hardhat-example

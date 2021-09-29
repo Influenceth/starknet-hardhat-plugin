@@ -7,7 +7,10 @@ aliases:
       - setup_remote_docker:
           version: 20.10.7
       - run:
-          name: Install
+          name: Install node and npm
+          command: apt update && apt install nodejs npm 
+      - run:
+          name: NPM install
           command: npm install
       - run:
           name: Build
@@ -20,7 +23,7 @@ jobs:
   test_node_v12:
     <<: *node-base
     docker:
-      - image: circleci/node:12
+      - image: cimg/base:2021.04
   test_node_v14:
     <<: *node-base
     docker:
