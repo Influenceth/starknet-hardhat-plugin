@@ -150,15 +150,15 @@ export class StarknetContract {
                     [this.abiPath]: this.abiPath
                 }
             }
-            );
-            
-            if (executed.statusCode) {
-                const msg = `Could not ${kind} ${functionName}:\n` + executed.stderr.toString();
-                const replacedMsg = adaptLog(msg);
-                throw new HardhatPluginError(PLUGIN_NAME, replacedMsg);
-            }
-            
-            return executed;
+        );
+
+        if (executed.statusCode) {
+            const msg = `Could not ${kind} ${functionName}:\n` + executed.stderr.toString();
+            const replacedMsg = adaptLog(msg);
+            throw new HardhatPluginError(PLUGIN_NAME, replacedMsg);
+        }
+
+        return executed;
     }
 
     private async checkStatus(txID: string) {

@@ -7,7 +7,7 @@ import "./type-extensions";
 import { DockerWrapper, StarknetContractFactory } from "./types";
 import { PLUGIN_NAME, ABI_SUFFIX, DEFAULT_STARKNET_SOURCES_PATH, DEFAULT_STARKNET_ARTIFACTS_PATH, DEFAULT_DOCKER_IMAGE_TAG, DOCKER_REPOSITORY, DEFAULT_STARKNET_NETWORK, ALPHA_URL } from "./constants";
 import { HardhatConfig, HardhatUserConfig, HttpNetworkConfig } from "hardhat/types";
-import { adaptLog } from "./utils";
+import { adaptLog, getHostIpAddress } from "./utils";
 
 async function traverseFiles(
     traversable: string,
@@ -139,7 +139,7 @@ extendConfig((config: HardhatConfig, userConfig: Readonly<HardhatUserConfig>) =>
 });
 
 // add url to alpha network
-extendConfig((config: HardhatConfig) => {
+extendConfig((config: HardhatConfig, userConfig: Readonly<HardhatUserConfig>) => {
     config.networks.alpha = {
         url: ALPHA_URL,
         gas: undefined,
@@ -265,6 +265,29 @@ task("starknet-deploy", "Deploys Starknet contracts which have been compiled.")
         }
     });
 
+function getGatewayUrls(config: HardhatConfig) {
+    const testNetworkName = config.mocha.starknetNetwork || DEFAULT_STARKNET_NETWORK;
+    const testNetwork: HttpNetworkConfig = <HttpNetworkConfig> config.networks[testNetworkName];
+    if (!testNetwork) {
+        const msg = `Network ${testNetworkName} is specified under "mocha.starknetNetwork", but not defined in "networks".`;
+        throw new HardhatPluginError(PLUGIN_NAME, msg);
+    }
+
+    if (!testNetwork.url) {
+        throw new HardhatPluginError(PLUGIN_NAME, `Cannot use network ${testNetworkName}. No "url" specified.`);
+    }
+    testNetwork.url = testNetwork.url.trim();
+
+    const hostIpAddress = getHostIpAddress();
+    const regex = /^((?:https?:\/\/)?)((?:localhost)|(?:127\.0\.0\.1))(?=\/|:|$)/;
+    const adaptedUrl = testNetwork.url.replace(regex, `\$1${hostIpAddress}`);
+
+    return {
+        gatewayUrl: adaptedUrl,
+        feederGatewayUrl: adaptedUrl
+    };
+}
+
 extendEnvironment(hre => {
     hre.starknet = lazyObject(() => ({
         getContractFactory: async contractName => {
@@ -294,23 +317,14 @@ extendEnvironment(hre => {
                 throw new HardhatPluginError(PLUGIN_NAME, `Could not find ABI for ${contractName}`);
             }
 
-            const testNetworkName = hre.config.mocha.starknetNetwork || DEFAULT_STARKNET_NETWORK;
-            const testNetwork: HttpNetworkConfig = <HttpNetworkConfig> hre.config.networks[testNetworkName];
-            if (!testNetwork) {
-                const msg = `Network ${testNetworkName} is specified under "mocha.starknetNetwork", but not defined in "networks".`;
-                throw new HardhatPluginError(PLUGIN_NAME, msg);
-            }
-
-            if (!testNetwork.url) {
-                throw new HardhatPluginError(PLUGIN_NAME, `Cannot use network ${testNetworkName}. No "url" specified.`);
-            }
+            const { gatewayUrl, feederGatewayUrl } = getGatewayUrls(hre.config);
 
             return new StarknetContractFactory({
                 dockerWrapper: hre.dockerWrapper,
                 metadataPath,
                 abiPath,
-                gatewayUrl: testNetwork.url,
-                feederGatewayUrl: testNetwork.url
+                gatewayUrl,
+                feederGatewayUrl
             });
         }
     }));
