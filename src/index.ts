@@ -5,7 +5,7 @@ import { HardhatPluginError, lazyObject } from "hardhat/plugins";
 import { ProcessResult } from "@nomiclabs/hardhat-docker";
 import "./type-extensions";
 import { DockerWrapper, StarknetContractFactory } from "./types";
-import { PLUGIN_NAME, ABI_SUFFIX, DEFAULT_STARKNET_SOURCES_PATH, DEFAULT_STARKNET_ARTIFACTS_PATH, DEFAULT_DOCKER_IMAGE_TAG, DOCKER_REPOSITORY, DEFAULT_STARKNET_NETWORK, ALPHA_URL } from "./constants";
+import { PLUGIN_NAME, ABI_SUFFIX, DEFAULT_STARKNET_SOURCES_PATH, DEFAULT_STARKNET_ARTIFACTS_PATH, DEFAULT_DOCKER_IMAGE_TAG, DOCKER_REPOSITORY, DEFAULT_STARKNET_NETWORK, ALPHA_URL, DEVNET_DOCKER_REPOSITORY } from "./constants";
 import { HardhatConfig, HardhatUserConfig, HttpNetworkConfig } from "hardhat/types";
 import { adaptLog } from "./utils";
 
@@ -166,12 +166,26 @@ extendConfig((config: HardhatConfig) => {
         gasMultiplier: undefined,
         httpHeaders: undefined
     };
+
+    config.networks.devnet = {
+        url: "172.17.0.2:5000", // TODO
+        gas: undefined,
+        gasPrice: undefined,
+        accounts: undefined,
+        timeout: undefined,
+        gasMultiplier: undefined,
+        httpHeaders: undefined
+    };
 });
 
 extendEnvironment(hre => {
     const repository = DOCKER_REPOSITORY;
     const tag = hre.config.cairo.version;
     hre.dockerWrapper = new DockerWrapper({ repository, tag });
+    // TODO hre.config. devnet version specified
+    const devnetRepository = DEVNET_DOCKER_REPOSITORY;
+    const devnetTag = "latest";
+    hre.devnetDockerWrapper = new DockerWrapper({ repository: DEVNET_DOCKER_REPOSITORY, tag: devnetTag });
 });
 
 task("starknet-compile", "Compiles StarkNet contracts")
@@ -244,7 +258,7 @@ task("starknet-compile", "Compiles StarkNet contracts")
 
 task("starknet-deploy", "Deploys Starknet contracts which have been compiled.")
     .addOptionalParam("starknetNetwork", "The network version to be used (e.g. alpha)")
-    .addOptionalParam("gatewayUrl", "The URL of the gateway to be used (e.g. https://alpha2.starknet.io:443)")
+    .addOptionalParam("gatewayUrl", `The URL of the gateway to be used (e.g. ${ALPHA_URL})`)
     .addOptionalVariadicPositionalParam("paths",
         "The paths to be used for deployment.\n" +
         "Each of the provided paths is recursively looked into while searching for compilation artifacts.\n" +
@@ -262,7 +276,6 @@ task("starknet-deploy", "Deploys Starknet contracts which have been compiled.")
         if (args.gatewayUrl) {
             optionalStarknetArgs.push(`--gateway_url=${args.gatewayUrl}`);
         }
-
 
         const defaultArtifactsPath = hre.config.paths.starknetArtifacts;
         const artifactsPaths: string[] = args.paths || [defaultArtifactsPath];
@@ -295,6 +308,30 @@ task("starknet-deploy", "Deploys Starknet contracts which have been compiled.")
         if (statusCode) {
             throw new HardhatPluginError(PLUGIN_NAME, `Failed deployment of ${statusCode} contracts`);
         }
+    });
+
+task("starknet-devnet", "Starts a starknet-devnet node.")
+    // TODO localhost might be problematic, 127.0.0.1 is probably a better choice 
+    .addOptionalParam("url", "The URL to listen at (e.g. localhost:5000")
+    .setAction(async (args, hre) => {
+        const devnetDocker = await hre.devnetDockerWrapper.getDocker();
+        const executed = await devnetDocker.runContainer(
+            hre.devnetDockerWrapper.image,
+            [
+                // TODO required even though image was built with a CMD line
+                "poetry", "run", "starknet-devnet", "--host", "0.0.0.0", "--port", "5000"
+            ],
+            {
+                // TODO if the container could stay alive, that'd be great
+            }
+        );
+
+        console.log("DEBUG stderr:");
+        console.log(executed.stderr.toString());
+        console.log("DEBUG stdout:");
+        console.log(executed.stdout.toString());
+
+        console.log("Executed!");
     });
 
 extendEnvironment(hre => {

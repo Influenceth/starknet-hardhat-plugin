@@ -27,6 +27,7 @@ declare module "hardhat/types/config" {
 
     export interface NetworksConfig {
         alpha: HttpNetworkConfig;
+        devnet: HttpNetworkConfig;
     }
 }
 
@@ -36,6 +37,9 @@ type StarknetContractFactoryType = StarknetContractFactory;
 declare module "hardhat/types/runtime" {
     interface HardhatRuntimeEnvironment {
         dockerWrapper: DockerWrapper;
+
+        devnetDockerWrapper: DockerWrapper;
+
         /**
          * Fetches a compiled contract by name. E.g. if the contract is defined in MyContract.cairo,
          * the provided string should be `MyContract`.
