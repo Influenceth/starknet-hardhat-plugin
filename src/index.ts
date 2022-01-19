@@ -166,4 +166,5 @@ task("starknet-call", "Invokes a function on a contract in the provided address.
         "Space separated values forming function input.\n" +
         "Pass them as a single string; e.g. --inputs \"1 2 3\"")
     .addOptionalParam("signature", "The call signature")
+    .addOptionalParam("blockNumber", "The number of the block to call")
     .setAction(starknetCallAction);

@@ -30,6 +30,7 @@ export interface InvokeOrCallOptions {
     signature?: string[],
     gatewayUrl: string,
     feederGatewayUrl: string,
+    blockNumber?: string
 }
 
 export interface GetTxStatusOptions {
@@ -86,6 +87,10 @@ export abstract class StarknetWrapper {
 
         if (options.signature && options.signature.length) {
             prepared.push("--signature", ...options.signature);
+        }
+
+        if (options.blockNumber) {
+            prepared.push("--block_number", options.blockNumber);
         }
 
         return prepared;
